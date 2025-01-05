@@ -1,0 +1,85 @@
+name: 自动部署
+
+# 当有改动推送到master分支时，启动Action
+on:
+  push:
+    branches:
+      - master #2020年10月后github新建仓库默认分支改为main，注意更改
+  release:
+    types:
+      - published
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # 任务所需容器，可选值：ubuntu-latest、windows-latest、macos-latest
+    steps:
+      - name: 检查分支
+        uses: actions/checkout@v2
+        with:
+          ref: master
+
+      - name: 安装 Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: "16.x"
+
+      - name: 安装 Hexo
+        run: |
+          export TZ='Asia/Shanghai'
+          npm install hexo-cli -g
+
+      - name: 缓存 Hexo
+        id: cache-npm
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: 安装依赖
+        if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
+        run: |
+          npm install gulp-cli -g #全局安装gulp
+          npm install --save
+
+      - name: 生成静态文件
+        run: |
+          hexo clean
+          hexo bangumi -u #bilibili番剧更新
+          hexo generate
+          
+
+      # - name: 部署到Github
+      #   uses: JamesIves/github-pages-deploy-action@v4
+      #   with:
+      #     token: ${{ secrets.GITHUBTOKEN }}
+      #     repository-name: ningan123/ningan123.github.io
+      #     branch: main
+      #     folder: public
+      #     commit-message: "${{ github.event.head_commit.message }} $(date +\"%Z %Y-%m-%d %A %H:%M:%S\") Updated By Github Actions"
+
+
+      # - name: Build and Deploy
+      #   # 使用专门部署 Hexo 到 GitHub pages 的 action
+      #   uses: Tit1e/hexo-deploy-github-pages-action@master
+      #   env:
+      #     PERSONAL_TOKEN: ${{ secrets.GITHUBTOKEN }} # secret 名
+      #     PUBLISH_REPOSITORY: ningan123/ningan123.github.io # 公共仓库，格式：GitHub 用户名/仓库名
+      #     BRANCH: main # 分支，根据实际填写
+      #     PUBLISH_DIR: ./public # 部署 public 目录下的文件，hexo 一般都是这个目录，可根据实际调整
+
+      - name: deploy #此处master:main 指从本地的master分支提交到远程仓库的main分支(不是博客的分支写master即可)，若远程仓库没有对应分支则新建一个。如有其他需要，可以根据自己的需求更改。
+        run: |
+          export TZ='Asia/Shanghai'
+          cd ./public
+          git init
+          git config --global user.name '${{ secrets.GITHUBUSERNAME }}'
+          git config --global user.email '${{ secrets.GITHUBEMAIL }}'
+          git add .
+          git commit -m "${{ github.event.head_commit.message }} $(date +"%Z %Y-%m-%d %A %H:%M:%S") Updated By Github Actions"
+          git push --force --quiet "https://${{ secrets.GITHUBUSERNAME }}:${{ secrets.GITHUBTOKEN }}@github.com/${{ secrets.GITHUBUSERNAME }}/${{ secrets.GITHUBUSERNAME }}.github.io.git" master:main  # GitHub配置
