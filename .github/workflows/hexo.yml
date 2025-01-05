@@ -1,45 +1,44 @@
-name: Hexo Deploy
+name: Deploy hexo blog
 
 on:
   push:
     branches:
-      - main
-env:
-  TZ: Asia/Shanghai # 不设置时间会与本地时间不一致。
-  
+    - master
+
 jobs:
   build:
-    runs-on: ubuntu-latest # 使用最新的 Ubuntu 系统作为编译部署的环境
-    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v3 # 使用v2，会报错，更新到v3无报错。
-        with:
-          ref: main
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3 # 使用v1，会报错，更新到v3无报错。
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          node-version: '16.x'  # 更新到较新版本，12版本已淘汰。
+          node-version: ${{ matrix.node-version }}
 
-      - name: Setup Hexo
+      - name: Configuration environment
         env:
-          ACTION_DEPLOY_KEY: ${{ secrets.HEXO_DEPLOY_KEY }}
+          HEXO_DEPLOY_PRI: ${{secrets.HEXO_DEPLOY_PRI}}
         run: |
+          sudo timedatectl set-timezone "Asia/Shanghai"
           mkdir -p ~/.ssh/
-          echo "$ACTION_DEPLOY_KEY" > ~/.ssh/id_rsa
-          chmod 700 ~/.ssh
+          echo "$HEXO_DEPLOY_PRI" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-          git config --global user.email "test@users.noreply.github.com"
-          git config --global user.name "test"
-          npm install hexo-cli -g
-          npm install
-
-      - name: Deploy
+          git config --global user.name "secsilm"
+          git config --global user.email "secsilm@outlook.com"
+      - name: Install dependencies
+        run: |
+          npm i -g hexo-cli
+          npm ci
+          cd themes/tranquilpeak/
+          npm ci
+          npm run prod
+      - name: Deploy hexo
         run: |
           hexo clean
-          hexo generate
-          hexo douban  # 如果没有安装豆瓣插件，这个命令就不需要
-          hexo deploy
+          hexo d -g
