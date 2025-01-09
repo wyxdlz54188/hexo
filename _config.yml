@@ -96,18 +96,17 @@ ignore:
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: hexo-theme-butterfly
+theme: butterfly
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
 deploy:
   type: git
-  repository: https://github.com/wyxdlz54188/wyxdlz54188.github.io.git
+  repository: git@github.com:wyxdlz54188/wyxdlz54188.github.io.git
   branch: main
 # search
 search:
   path: search.xml
   field: post # post:文章范围、page:页面范围、all:覆盖所有
   content: true # 内容是否包含每一篇文章的全部内容
-  template:  # ./search.xml 指定定制的XML模板
-
+  template:  ./search.xml

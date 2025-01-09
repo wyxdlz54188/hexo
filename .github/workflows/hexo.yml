@@ -1,44 +1,44 @@
-name: Deploy hexo blog
+name: Hexo Deploy
 
 on:
   push:
     branches:
-    - master
-
+      - main
+env:
+  TZ: Asia/Shanghai # 不设置时间会与本地时间不一致。
+  
 jobs:
   build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.x]
+    runs-on: ubuntu-latest # 使用最新的 Ubuntu 系统作为编译部署的环境
+    if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout source
+        uses: actions/checkout@v3 # 使用v2，会报错，更新到v3无报错。
         with:
-          node-version: ${{ matrix.node-version }}
+          ref: main
 
-      - name: Configuration environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v3 # 使用v1，会报错，更新到v3无报错。
+        with:
+          node-version: '20.x'  # 更新到较新版本，12版本已淘汰。
+
+      - name: Setup Hexo
         env:
-          HEXO_DEPLOY_PRI: ${{secrets.HEXO_DEPLOY_PRI}}
+          ACTION_DEPLOY_KEY: ${{ secrets.HEXO_DEPLOY_KEY }}
         run: |
-          sudo timedatectl set-timezone "Asia/Shanghai"
           mkdir -p ~/.ssh/
-          echo "$HEXO_DEPLOY_PRI" | tr -d '\r' > ~/.ssh/id_rsa
+          echo "$ACTION_DEPLOY_KEY" > ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-          git config --global user.name "secsilm"
-          git config --global user.email "secsilm@outlook.com"
-      - name: Install dependencies
-        run: |
-          npm i -g hexo-cli
-          npm ci
-          cd themes/tranquilpeak/
-          npm ci
-          npm run prod
-      - name: Deploy hexo
+          git config --global user.email "test@users.noreply.github.com"
+          git config --global user.name "test"
+          npm install hexo-cli -g
+          npm install
+
+      - name: Deploy
         run: |
           hexo clean
-          hexo d -g
+          hexo g --debug
+          hexo deploy
